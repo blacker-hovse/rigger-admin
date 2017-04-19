@@ -1,8 +1,8 @@
 <?
 include(__DIR__ . '/../../lib/include.php');
-include(__DIR__ . '/../include.php');
+include(__DIR__ . '/../../rigger/include.php');
 
-$pdo = rigger_init('../rigger.db');
+$pdo = rigger_init('../../rigger/rigger.db');
 
 if (array_key_exists('action', $_POST)) {
   header('HTTP/1.1 400 Bad Request');
