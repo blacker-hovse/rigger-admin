@@ -249,6 +249,24 @@ switch (@$_GET['action']) {
       $candidates = array_diff($candidates, array_keys($c2));
     }
 
+    $result = $pdo->prepare(<<<EOF
+SELECT `name`
+FROM `candidates`
+WHERE `id` = :id
+EOF
+      );
+
+    $result->execute(array(
+      ':id' => $candidates[0]
+    ));
+
+    $result = $result->fetch(PDO::FETCH_COLUMN);
+
+    echo <<<EOF
+      <p>The winner is $result.</p>
+
+EOF;
+
     break;
   case 'edit':
     echo <<<EOF
