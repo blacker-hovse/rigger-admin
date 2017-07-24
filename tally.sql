@@ -4,10 +4,10 @@ WITH `users` AS (
     SELECT `user`
     FROM `candidates`
     LEFT JOIN `votes` ON `candidates`.`id` = `votes`.`candidate`
-    WHERE `candidates`.`election` = 1
+    WHERE `candidates`.`election` = :id
     UNION SELECT `user`
     FROM `writeins`
-    WHERE `writeins`.`election` = 1
+    WHERE `writeins`.`election` = :id
   )
 )
 SELECT `c1`.`id` AS `c1`,
