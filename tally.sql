@@ -5,6 +5,7 @@ WITH `users` AS (
     FROM `candidates`
     LEFT JOIN `votes` ON `candidates`.`id` = `votes`.`candidate`
     WHERE `candidates`.`election` = :id
+      AND `candidates`.`id` NOT IN :exclusions
     UNION SELECT `user`
     FROM `writeins`
     WHERE `writeins`.`election` = :id
@@ -31,6 +32,7 @@ FROM (
   LEFT JOIN `votes` ON `users`.`user` = `votes`.`user`
     AND `candidates`.`id` = `votes`.`candidate`
   WHERE `candidates`.`election` = :id
+    AND `candidates`.`id` NOT IN :exclusions
   UNION SELECT 0,
     `users`.`user`,
     `writeins`.`rank`

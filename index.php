@@ -101,11 +101,13 @@ EOF
     $result = $pdo->prepare(<<<EOF
 INSERT INTO `elections` (
   `name`,
+  `winners`,
   `writeins`,
   `created`
 )
 VALUES (
   :name,
+  :winners,
   :writeins,
   DATETIME('now')
 )
@@ -114,6 +116,7 @@ EOF
 
     $result->execute(array(
       ':name' => $_POST['title'],
+      ':winners' => $_POST['winners'], // TODO
       ':writeins' => (bool) @$_POST['writeins']
     ));
 
@@ -219,51 +222,46 @@ EOF;
 
 switch (@$_GET['action']) {
   case 'count':
-    $graph = array();
-    $result = $pdo->prepare(file_get_contents('tally.sql'));
-
-    $result->execute(array(
-      ':id' => $_GET['id']
-    ));
-
-    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-      $c1 = (int) $row['c1'];
-      $c2 = (int) $row['c2'];
-
-      if (!array_key_exists($c1, $graph)) {
-        $graph[$c1] = array();
-      }
-
-      if (!array_key_exists($c2, $graph)) {
-        $graph[$c2] = array();
-      }
-
-      if (!rigger_dfs($graph, $c2, $c1, array())) {
-        $graph[$c1][$c2] = true;
-      }
-    }
-
-    $candidates = array_keys($graph);
-
-    foreach ($graph as $c1 => $c2) {
-      $candidates = array_diff($candidates, array_keys($c2));
-    }
+    $set = array();
 
     $result = $pdo->prepare(<<<EOF
-SELECT `name`
-FROM `candidates`
+SELECT `winners`
+FROM `elections`
 WHERE `id` = :id
 EOF
       );
 
     $result->execute(array(
-      ':id' => $candidates[0]
+      ':id' => $_GET['id']
     ));
 
-    $result = $result->fetch(PDO::FETCH_COLUMN);
+    $winners = $result->fetch(PDO::FETCH_COLUMN);
+
+    while (count($set) < $winners) {
+      $set[] = rigger_count($pdo, $_GET['id'], $set);
+    }
+
+    $exclusions = rigger_stringify($pdo, $set);
+
+    $result = $pdo->prepare(<<<EOF
+SELECT `name`
+FROM `candidates`
+WHERE `id` IN $exclusions
+EOF
+      );
+
+    $result->execute();
+    $set = array_map('htmlentities', $result->fetchAll(PDO::FETCH_COLUMN));
+
+    if (count($set) == 1) {
+      $result = "The winner is $set[0].";
+    } else {
+      $set[count($set) - 1] = 'and ' . $set[count($set) - 1];
+      $result = 'The winners are ' . implode(', ', $set) . '.';
+    }
 
     echo <<<EOF
-      <p>The winner is $result.</p>
+      <p>$result</p>
 
 EOF;
 
@@ -275,6 +273,12 @@ EOF;
           <label for="title">Title</label>
           <div class="input-group">
             <input type="text" id="title" name="title" maxlength="255" />
+          </div>
+        </div>
+        <div id="winners-control" class="form-control">
+          <label for="winners">Winners</label>
+          <div class="input-group">
+            <input type="number" id="winners" name="winners" min="1" value="1" />
           </div>
         </div>
         <div id="writeins-control" class="form-control">
@@ -304,12 +308,14 @@ EOF;
     $result = $pdo->prepare(<<<EOF
 SELECT `id`,
   `name`,
+  `winners`,
   `created`,
   `closed`,
   COUNT(DISTINCT `user`) AS `ballots`
 FROM (
   SELECT `elections`.`id` AS `id`,
     `elections`.`name` AS `name`,
+    `elections`.`winners` AS `winners`,
     `elections`.`created` AS `created`,
     `elections`.`closed` AS `closed`,
     `votes`.`user`
@@ -318,6 +324,7 @@ FROM (
   LEFT JOIN `votes` ON `candidates`.`id` = `votes`.`candidate`
   UNION SELECT `elections`.`id` AS `id`,
     `elections`.`name` AS `name`,
+    `elections`.`winners` AS `winners`,
     `elections`.`created` AS `created`,
     `elections`.`closed` AS `closed`,
     `writeins`.`user`
@@ -334,11 +341,12 @@ EOF
       $title = htmlentities($row['name'], NULL, 'UTF-8');
       $closed = rigger_closed($row['closed']);
       $active = $row['closed'] ? '' : ' active';
+      $winners = $row['winners'] == 1 ? '1 winner' : $row['winners'] . ' winners';
 
       echo <<<EOF
         <li id="poll$row[id]" class="list-group-item">
           <div class="close toggle$active"></div>
-          <h4>$title <small>$row[ballots] cast</small></h4>
+          <h4>$title ($winners)<small>$row[ballots] cast</small></h4>
           <div class="clearfix pull-right">
             <a class="btn btn-sm" href="?action=count&id=$row[id]">View Results</a>
             <a class="btn btn-sm del">Destroy Poll</a>
