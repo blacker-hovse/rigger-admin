@@ -222,26 +222,8 @@ EOF;
 
 switch (@$_GET['action']) {
   case 'count':
-    $set = array();
-
-    $result = $pdo->prepare(<<<EOF
-SELECT `winners`
-FROM `elections`
-WHERE `id` = :id
-EOF
-      );
-
-    $result->execute(array(
-      ':id' => $_GET['id']
-    ));
-
-    $winners = $result->fetch(PDO::FETCH_COLUMN);
-
-    while (count($set) < $winners) {
-      $set[] = rigger_count($pdo, $_GET['id'], $set);
-    }
-
-    $exclusions = rigger_stringify($pdo, $set);
+    $set = rigger_count($pdo, $_GET['id']);
+    $exclusions = rigger_intval($set);
 
     $result = $pdo->prepare(<<<EOF
 SELECT `name`
