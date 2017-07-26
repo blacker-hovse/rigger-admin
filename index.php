@@ -95,7 +95,7 @@ EOF
     header('HTTP/1.1 200 OK');
     header('Status: 200 OK');
   } catch (OutOfBoundsException $e) {
-    $error = 'Invalid action ' . rigger_escape($_POST['action']) . '.';
+    $error = 'Invalid action ' . blacker_encode($_POST['action']) . '.';
   }
 
   die($error);
@@ -190,7 +190,7 @@ print_head('Vote Rigger');
 <?
 if ($candidates) {
   foreach ($candidates as $candidate) {
-    $candidate = rigger_escape($candidate);
+    $candidate = blacker_encode($candidate);
 
     echo <<<EOF
         addCandidate('$candidate');
@@ -287,7 +287,7 @@ EOF
         );
 
       $result->execute();
-      $set = array_map('rigger_escape', $result->fetchAll(PDO::FETCH_COLUMN));
+      $set = array_map('blacker_encode', $result->fetchAll(PDO::FETCH_COLUMN));
 
       switch (count($set)) {
         case 0:
@@ -312,7 +312,7 @@ EOF;
 
     break;
   case 'edit':
-    $title = rigger_escape($title);
+    $title = blacker_encode($title);
     $writeins = $writeins ? ' checked="checked"' : '';
 
     echo <<<EOF
@@ -386,7 +386,7 @@ EOF
     $result->execute();
 
     while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-      $title = rigger_escape($row['name']);
+      $title = blacker_encode($row['name']);
       $closed = rigger_closed($row['closed']);
       $active = $row['closed'] ? '' : ' active';
       $winners = $row['winners'] == 1 ? '1 winner' : $row['winners'] . ' winners';
