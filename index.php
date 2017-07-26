@@ -235,11 +235,19 @@ EOF
     $result->execute();
     $set = array_map('htmlentities', $result->fetchAll(PDO::FETCH_COLUMN));
 
-    if (count($set) == 1) {
-      $result = "The winner is $set[0].";
-    } else {
-      $set[count($set) - 1] = 'and ' . $set[count($set) - 1];
-      $result = 'The winners are ' . implode(', ', $set) . '.';
+    switch (count($set)) {
+      case 0:
+        $result = 'There is no winner.';
+        break;
+      case 1:
+        $result = "The winner is $set[0].";
+        break;
+      case 2:
+        $result = "The winners are $set[0] and $set[1].";
+        break;
+      default:
+        $set[count($set) - 1] = 'and ' . $set[count($set) - 1];
+        $result = 'The winners are ' . implode(', ', $set) . '.';
     }
 
     echo <<<EOF
