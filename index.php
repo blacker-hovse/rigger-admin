@@ -3,6 +3,11 @@ include(__DIR__ . '/../../lib/include.php');
 include(__DIR__ . '/../../rigger/include.php');
 
 $pdo = rigger_init('../../rigger/rigger.db');
+$title = '';
+$winners = 1;
+$candidates = array();
+$writeins = true;
+$error = '';
 
 if (array_key_exists('action', $_POST)) {
   header('HTTP/1.1 400 Bad Request');
@@ -90,14 +95,29 @@ EOF
     header('HTTP/1.1 200 OK');
     header('Status: 200 OK');
   } catch (OutOfBoundsException $e) {
-    $content = 'Invalid action ' . htmlentities($_POST['action'], NULL, 'UTF-8') . '.';
+    $error = 'Invalid action ' . rigger_escape($_POST['action']) . '.';
   }
 
-  die();
+  die($error);
 } elseif (array_key_exists('title', $_POST)) {
+  $title = trim($_POST['title']);
+  $winners = (int) $_POST['winners'];
   $candidates = array_filter($_POST['candidates']);
+  $writeins = (bool) @$_POST['writeins'];
 
-  if ($_POST['title'] and $candidates) {
+  if (!$_POST['title']) {
+    $error = ' A title is required.';
+  }
+
+  if ($winners < 1) {
+    $error .= ' Please select a valid number of winners.';
+  }
+
+  if (count($candidates) < $winners) {
+    $error .= ' At least as many candidates as winners must be provided.';
+  }
+
+  if (!$error) {
     $result = $pdo->prepare(<<<EOF
 INSERT INTO `elections` (
   `name`,
@@ -115,9 +135,9 @@ EOF
       );
 
     $result->execute(array(
-      ':name' => $_POST['title'],
-      ':winners' => $_POST['winners'], // TODO
-      ':writeins' => (bool) @$_POST['writeins']
+      ':name' => $title,
+      ':winners' => $winners, // TODO
+      ':writeins' => $writeins
     ));
 
     $election = $pdo->lastInsertId();
@@ -143,6 +163,8 @@ EOF
 
     header('Location: ./');
     die();
+  } else {
+    $error = substr($error, 1);
   }
 }
 ?><!DOCTYPE html>
@@ -155,15 +177,34 @@ print_head('Vote Rigger');
       var e = 0;
       var f = $('<a class="btn btn-lg add">+</a>');
 
-      function addCandidate() {
-        $('<div class="form-control"><label for="candidate' + e++ + '">Candidate ' + e + '</label><div class="input-group input-group-left"><input type="text" id="candidate' + (e - 1) + '" name="candidates[]" maxlength="255" /></div><div class="input-group input-group-right"><a class="btn btn-lg del">&times;</a></div></div>').children('.input-group-right').append(f).end().insertBefore('#writeins-control');
+      function addCandidate(g) {
+        if (typeof g != 'string') {
+          g = '';
+        }
+
+        $('<div class="form-control"><label for="candidate' + e++ + '">Candidate ' + e + '</label><div class="input-group input-group-left"><input type="text" id="candidate' + (e - 1) + '" name="candidates[]" maxlength="255" value="' + g + '" /></div><div class="input-group input-group-right"><a class="btn btn-lg del">&times;</a></div></div>').children('.input-group-right').append(f).end().insertBefore('#writeins-control');
       }
 
       $(function() {
         f.click(addCandidate);
+<?
+if ($candidates) {
+  foreach ($candidates as $candidate) {
+    $candidate = rigger_escape($candidate);
+
+    echo <<<EOF
+        addCandidate('$candidate');
+
+EOF;
+  }
+} else {
+  echo <<<EOF
         addCandidate();
         addCandidate();
 
+EOF;
+}
+?>
         $('#poll').on('click', '.del', function() {
           if (e > 1) {
             $(this).closest('.form-control').nextUntil('#writeins-control').addBack().slice(0, -1).each(function() {
@@ -213,6 +254,13 @@ print_head('Vote Rigger');
     <div id="main">
       <h1>Vote Rigger</h1>
 <?
+if ($error) {
+  echo <<<EOF
+      <div class="error">$error</div>
+
+EOF;
+}
+
 $subtitle = rigger_subtitle();
 
 echo <<<EOF
@@ -223,31 +271,38 @@ EOF;
 switch (@$_GET['action']) {
   case 'count':
     $set = rigger_count($pdo, $_GET['id']);
-    $exclusions = rigger_intval($set);
 
-    $result = $pdo->prepare(<<<EOF
+    if (!$set) {
+      $result = 'No winner could be determined.';
+    } elseif (array_key_exists(0, $set)) {
+      $result = 'A write-in candidate may have won the election. Please count the ballots manually.';
+    } else {
+      $winners = rigger_intval($set);
+
+      $result = $pdo->prepare(<<<EOF
 SELECT `name`
 FROM `candidates`
-WHERE `id` IN $exclusions
+WHERE `id` IN $winners
 EOF
-      );
+        );
 
-    $result->execute();
-    $set = array_map('htmlentities', $result->fetchAll(PDO::FETCH_COLUMN));
+      $result->execute();
+      $set = array_map('rigger_escape', $result->fetchAll(PDO::FETCH_COLUMN));
 
-    switch (count($set)) {
-      case 0:
-        $result = 'There is no winner.';
-        break;
-      case 1:
-        $result = "The winner is $set[0].";
-        break;
-      case 2:
-        $result = "The winners are $set[0] and $set[1].";
-        break;
-      default:
-        $set[count($set) - 1] = 'and ' . $set[count($set) - 1];
-        $result = 'The winners are ' . implode(', ', $set) . '.';
+      switch (count($set)) {
+        case 0:
+          $result = 'There is no winner.';
+          break;
+        case 1:
+          $result = "The winner is $set[0].";
+          break;
+        case 2:
+          $result = "The winners are $set[0] and $set[1].";
+          break;
+        default:
+          $set[count($set) - 1] = 'and ' . $set[count($set) - 1];
+          $result = 'The winners are ' . implode(', ', $set) . '.';
+      }
     }
 
     echo <<<EOF
@@ -257,23 +312,26 @@ EOF;
 
     break;
   case 'edit':
+    $title = rigger_escape($title);
+    $writeins = $writeins ? ' checked="checked"' : '';
+
     echo <<<EOF
       <form id="poll" action="?action=edit" method="post">
         <div class="form-control">
           <label for="title">Title</label>
           <div class="input-group">
-            <input type="text" id="title" name="title" maxlength="255" />
+            <input type="text" id="title" name="title" maxlength="255" value="$title" />
           </div>
         </div>
         <div id="winners-control" class="form-control">
           <label for="winners">Winners</label>
           <div class="input-group">
-            <input type="number" id="winners" name="winners" min="1" value="1" />
+            <input type="number" id="winners" name="winners" min="1" value="$winners" />
           </div>
         </div>
         <div id="writeins-control" class="form-control">
           <div class="input-group">
-            <input type="checkbox" id="writeins" name="writeins" value="writeins" checked="checked" />
+            <input type="checkbox" id="writeins" name="writeins" value="writeins"$writeins />
             <label for="writeins">Allow write-ins</label>
           </div>
         </div>
@@ -328,7 +386,7 @@ EOF
     $result->execute();
 
     while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-      $title = htmlentities($row['name'], NULL, 'UTF-8');
+      $title = rigger_escape($row['name']);
       $closed = rigger_closed($row['closed']);
       $active = $row['closed'] ? '' : ' active';
       $winners = $row['winners'] == 1 ? '1 winner' : $row['winners'] . ' winners';
