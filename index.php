@@ -172,17 +172,16 @@ EOF
   <head>
 <?
 print_head('Vote Rigger');
-?>    <script type="text/javascript" src="/lib/js/jquery.min.js"></script>
-    <script type="text/javascript">// <![CDATA[
+?>    <script type="text/javascript">// <![CDATA[
       var e = 0;
-      var f = $('<a class="btn btn-lg add">+</a>');
+      var f = $('<a class="btn btn-lg btn-persistent add">+</a>');
 
       function addCandidate(g) {
         if (typeof g != 'string') {
           g = '';
         }
 
-        $('<div class="form-control"><label for="candidate' + e++ + '">Candidate ' + e + '</label><div class="input-group input-group-left"><input type="text" id="candidate' + (e - 1) + '" name="candidates[]" maxlength="255" value="' + g + '" /></div><div class="input-group input-group-right"><a class="btn btn-lg del">&times;</a></div></div>').children('.input-group-right').append(f).end().insertBefore('#writeins-control');
+        $('<div class="form-control"><label for="candidate' + e++ + '">Candidate ' + e + '</label><div class="input-group input-group-left"><input type="text" id="candidate' + (e - 1) + '" name="candidates[]" maxlength="255" value="' + g + '" /></div><div class="input-group input-group-right"><a class="btn btn-lg btn-persistent del">&times;</a></div></div>').children('.input-group-right').append(f).end().insertBefore('#writeins-control');
       }
 
       $(function() {
@@ -306,7 +305,15 @@ EOF
     }
 
     echo <<<EOF
-      <p>$result</p>
+      <p>$result <a href="./" class="btn btn-sm">Back to Polls</a></p>
+      <h2>Pairwise Victories</h2>
+      <p class="text-center">
+        <a class="btn btn-lg" href="?action=edit">Load Pairwise Victories</a>
+      </p>
+      <h2>Individual Ballots</h2>
+      <p class="text-center">
+        <a class="btn btn-lg" href="?action=edit">Load Individual Ballots</a>
+      </p>
 
 EOF;
 
@@ -397,7 +404,7 @@ EOF
           <h4>$title ($winners)<small>$row[ballots] cast</small></h4>
           <div class="clearfix pull-right">
             <a class="btn btn-sm" href="?action=count&id=$row[id]">View Results</a>
-            <a class="btn btn-sm del">Destroy Poll</a>
+            <a class="btn btn-sm btn-persistent del">Destroy Poll</a>
           </div>
           <p>
             <small>Created $row[created]</small>
