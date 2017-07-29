@@ -116,7 +116,7 @@ EOF
           }
 
           $graph[$n1][$n2] = <<<EOF
-          <td class="pairwise-$status">$a&ndash;$b</td>
+            <td class="pairwise-$status">$a&ndash;$b</td>
 
 EOF;
         }
@@ -125,9 +125,10 @@ EOF;
         $height = max(max(array_map('strlen', $candidates)) / 3, 2) . 'em';
 
         echo <<<EOF
-      <table class="pairwise">
-        <tr style="height: $height;">
-          <td></td>
+      <div>
+        <table class="pairwise">
+          <tr style="height: $height;">
+            <td></td>
 
 EOF;
 
@@ -137,15 +138,15 @@ EOF;
           }
 
           echo <<<EOF
-          <th>
-            <div>$n1</div>
-          </th>
+            <th>
+              <div>$n1</div>
+            </th>
 
 EOF;
         }
 
         echo <<<EOF
-        </tr>
+          </tr>
 
 EOF;
 
@@ -155,22 +156,23 @@ EOF;
           }
 
           echo <<<EOF
-        <tr>
-          <th>$n1</th>
+          <tr>
+            <th>$n1</th>
 
 EOF;
 
           foreach ($candidates as $n2) {
             echo array_key_exists($n2, $pairwises) ? $pairwises[$n2] : <<<EOF
-          <td class="pairwise-self"></td>
+            <td class="pairwise-self"></td>
 
 EOF;
           }
         }
 
         echo <<<EOF
-        </tr>
-      </table>
+          </tr>
+        </table>
+      </div>
 
 EOF;
 
@@ -340,7 +342,7 @@ EOF;
           $.post('./', {action: this.id, id: '<?
 echo @$_GET['id'];
 ?>'}).done(function(e) {
-            f.replaceWith(e);
+            f.parent().replaceWith(e);
           }).fail(function(e) {
             f.replaceWith(e.responseText);
           });
