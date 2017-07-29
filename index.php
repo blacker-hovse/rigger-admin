@@ -15,7 +15,7 @@ if (array_key_exists('action', $_POST)) {
 
   try {
     $parameters = array(
-      ':id' => $_POST['id']
+      ':id' => (int) @$_POST['id']
     );
 
     switch ($_POST['action']) {
@@ -87,6 +87,93 @@ EOF
 
         $result->execute($parameters);
         echo rigger_closed(false);
+        break;
+      case 'individual':
+
+        break;
+      case 'pairwise':
+        $result = $pdo->prepare(file_get_contents('tally.sql'));
+        $result->execute($parameters);
+        $graph = array();
+
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+          $n1 = blacker_encode($row['n1']);
+          $n2 = blacker_encode($row['n2']);
+          $a = (int) $row['a'];
+          $b = (int) $row['b'];
+          $status = 'tie';
+
+          if ($a < $b) {
+            $status = 'loss';
+          }
+
+          if ($a > $b) {
+            $status = 'win';
+          }
+
+          if (!array_key_exists($n1, $graph)) {
+            $graph[$n1] = array();
+          }
+
+          $graph[$n1][$n2] = <<<EOF
+          <td class="pairwise-$status">$a&ndash;$b</td>
+
+EOF;
+        }
+
+        $candidates = array_keys($graph);
+        $height = max(max(array_map('strlen', $candidates)) / 3, 2) . 'em';
+
+        echo <<<EOF
+      <table class="pairwise">
+        <tr style="height: $height;">
+          <td></td>
+
+EOF;
+
+        foreach ($candidates as $n1) {
+          if (!$n1) {
+            $n1 = '[write-in]';
+          }
+
+          echo <<<EOF
+          <th>
+            <div>$n1</div>
+          </th>
+
+EOF;
+        }
+
+        echo <<<EOF
+        </tr>
+
+EOF;
+
+        foreach ($graph as $n1 => $pairwises) {
+          if (!$n1) {
+            $n1 = '[write-in]';
+          }
+
+          echo <<<EOF
+        <tr>
+          <th>$n1</th>
+
+EOF;
+
+          foreach ($candidates as $n2) {
+            echo array_key_exists($n2, $pairwises) ? $pairwises[$n2] : <<<EOF
+          <td class="pairwise-self"></td>
+
+EOF;
+          }
+        }
+
+        echo <<<EOF
+        </tr>
+      </table>
+
+EOF;
+
         break;
       default:
         throw new OutOfBoundsException;
@@ -246,6 +333,18 @@ EOF;
             g.find('.closed').html(e);
           });
         });
+
+        $('#pairwise, #individual').click(function() {
+          var f = $(this);
+
+          $.post('./', {action: this.id, id: '<?
+echo @$_GET['id'];
+?>'}).done(function(e) {
+            f.replaceWith(e);
+          }).fail(function(e) {
+            f.replaceWith(e.responseText);
+          });
+        });
       });
     // ]]></script>
   </head>
@@ -308,11 +407,11 @@ EOF
       <p>$result <a href="./" class="btn btn-sm">Back to Polls</a></p>
       <h2>Pairwise Victories</h2>
       <p class="text-center">
-        <a class="btn btn-lg" href="?action=edit">Load Pairwise Victories</a>
+        <a id="pairwise" class="btn btn-lg">Load Pairwise Victories</a>
       </p>
       <h2>Individual Ballots</h2>
       <p class="text-center">
-        <a class="btn btn-lg" href="?action=edit">Load Individual Ballots</a>
+        <a id="individual" class="btn btn-lg">Load Individual Ballots</a>
       </p>
 
 EOF;

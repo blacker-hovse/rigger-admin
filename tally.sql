@@ -12,6 +12,8 @@ WITH `users` AS (
 )
 SELECT `c1`.`id` AS `c1`,
   `c2`.`id` AS `c2`,
+  `c1`.`name` AS `n1`,
+  `c2`.`name` AS `n2`,
   SUM(
     `c1`.`rank` < `c2`.`rank`
       OR `c1`.`rank` IS NOT NULL
@@ -24,6 +26,7 @@ SELECT `c1`.`id` AS `c1`,
   ) AS `b`
 FROM (
   SELECT `candidates`.`id`,
+    `candidates`.`name`,
     `users`.`user`,
     `votes`.`rank`
   FROM `candidates`
@@ -32,6 +35,7 @@ FROM (
     AND `candidates`.`id` = `votes`.`candidate`
   WHERE `candidates`.`election` = :id
   UNION SELECT 0,
+    '',
     `users`.`user`,
     `writeins`.`rank`
   FROM `users`
@@ -39,6 +43,7 @@ FROM (
 ) AS `c1`
 INNER JOIN (
   SELECT `candidates`.`id`,
+    `candidates`.`name`,
     `users`.`user`,
     `votes`.`rank`
   FROM `candidates`
@@ -47,6 +52,7 @@ INNER JOIN (
     AND `candidates`.`id` = `votes`.`candidate`
   WHERE `candidates`.`election` = :id
   UNION SELECT 0,
+    '',
     `users`.`user`,
     `writeins`.`rank`
   FROM `users`
