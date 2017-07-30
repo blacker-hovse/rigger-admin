@@ -108,29 +108,35 @@ EOF;
           $subresult = rigger_ballot($pdo, $parameters[':id'], $row['user']);
 
           while ($subrow = $subresult->fetch(PDO::FETCH_ASSOC)) {
-            $ballot[(int) $subrow['rank']] = blacker_encode($subrow['name']);
+            $rank = (int) $subrow['rank'];
+
+            if ($rank) {
+              $ballot[(int) $subrow['rank']] = blacker_encode($subrow['name']);
+            }
           }
 
-          ksort($ballot);
+          if ($ballot) {
+            ksort($ballot);
 
-          $content .= <<<EOF
+            $content .= <<<EOF
           <div class="ballot">
             <ol>
 
 EOF;
 
-          foreach ($ballot as $candidate) {
+            foreach ($ballot as $candidate) {
             $content .= <<<EOF
               <li>$candidate</li>
 
 EOF;
-          }
+            }
 
-          $content .= <<<EOF
+            $content .= <<<EOF
             </ol>
           </div>
 
 EOF;
+          }
         }
 
         $content .= <<<EOF
@@ -500,6 +506,7 @@ EOF;
         <div class="form-control">
           <div class="input-group">
             <input type="submit" value="Submit" />
+            <a class="btn" href="./">Cancel</a>
           </div>
         </div>
       </form>
