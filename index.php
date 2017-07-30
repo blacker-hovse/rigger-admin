@@ -115,7 +115,7 @@ EOF;
 
           $content .= <<<EOF
           <div class="ballot">
-            <ul>
+            <ol>
 
 EOF;
 
@@ -127,7 +127,7 @@ EOF;
           }
 
           $content .= <<<EOF
-            </ul>
+            </ol>
           </div>
 
 EOF;
