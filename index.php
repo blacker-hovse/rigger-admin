@@ -10,8 +10,8 @@ $writeins = true;
 $error = '';
 
 if (array_key_exists('action', $_POST)) {
-  header('HTTP/1.1 400 Bad Request');
-  header('Status: 400 Bad Request');
+  $fail = false;
+  $content = '';
 
   try {
     $parameters = array(
@@ -89,10 +89,58 @@ EOF
         echo rigger_closed(false);
         break;
       case 'individual':
+        $result = $pdo->prepare(file_get_contents('individual.sql'));
+        $result->execute($parameters);
+
+        $content = <<<EOF
+        <div>
+
+EOF;
+
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+          $ballot = array();
+          $rank = (int) $row['rank'];
+
+          if ($rank) {
+            $ballot[$rank] = blacker_encode($row['name']);
+          }
+
+          $subresult = rigger_ballot($pdo, $parameters[':id'], $row['user']);
+
+          while ($subrow = $subresult->fetch(PDO::FETCH_ASSOC)) {
+            $ballot[(int) $subrow['rank']] = blacker_encode($subrow['name']);
+          }
+
+          ksort($ballot);
+
+          $content .= <<<EOF
+          <div class="ballot">
+            <ul>
+
+EOF;
+
+          foreach ($ballot as $candidate) {
+            $content .= <<<EOF
+              <li>$candidate</li>
+
+EOF;
+          }
+
+          $content .= <<<EOF
+            </ul>
+          </div>
+
+EOF;
+        }
+
+        $content .= <<<EOF
+        </div>
+
+EOF;
 
         break;
       case 'pairwise':
-        $result = $pdo->prepare(file_get_contents('tally.sql'));
+        $result = $pdo->prepare(file_get_contents('count.sql'));
         $result->execute($parameters);
         $graph = array();
 
@@ -124,7 +172,7 @@ EOF;
         $candidates = array_keys($graph);
         $height = max(max(array_map('strlen', $candidates)) / 3, 2) . 'em';
 
-        echo <<<EOF
+        $content = <<<EOF
       <div>
         <table class="pairwise">
           <tr style="height: $height;">
@@ -137,7 +185,7 @@ EOF;
             $n1 = '[write-in]';
           }
 
-          echo <<<EOF
+          $content .= <<<EOF
             <th>
               <div>$n1</div>
             </th>
@@ -145,7 +193,7 @@ EOF;
 EOF;
         }
 
-        echo <<<EOF
+        $content .= <<<EOF
           </tr>
 
 EOF;
@@ -155,21 +203,21 @@ EOF;
             $n1 = '[write-in]';
           }
 
-          echo <<<EOF
+          $content .= <<<EOF
           <tr>
             <th>$n1</th>
 
 EOF;
 
           foreach ($candidates as $n2) {
-            echo array_key_exists($n2, $pairwises) ? $pairwises[$n2] : <<<EOF
+            $content .= array_key_exists($n2, $pairwises) ? $pairwises[$n2] : <<<EOF
             <td class="pairwise-self"></td>
 
 EOF;
           }
         }
 
-        echo <<<EOF
+        $content .= <<<EOF
           </tr>
         </table>
       </div>
@@ -180,15 +228,19 @@ EOF;
       default:
         throw new OutOfBoundsException;
     }
-
-    header('HTTP/1.1 200 OK');
-    header('Status: 200 OK');
   } catch (OutOfBoundsException $e) {
-    $error = 'Invalid action ' . blacker_encode($_POST['action']) . '.';
+    $content = 'Invalid action ' . blacker_encode($_POST['action']) . '.';
+    $fail = true;
   }
 
-  die($error);
+  if ($fail) {
+    header('HTTP/1.1 400 Bad Request');
+    header('Status: 400 Bad Request');
+  }
+
+  die($content);
 } elseif (array_key_exists('title', $_POST)) {
+  $error = '';
   $title = trim($_POST['title']);
   $winners = (int) $_POST['winners'];
   $candidates = array_filter($_POST['candidates']);
@@ -253,6 +305,8 @@ EOF
     header('Location: ./');
     die();
   } else {
+    header('HTTP/1.1 400 Bad Request');
+    header('Status: 400 Bad Request');
     $error = substr($error, 1);
   }
 }
@@ -461,35 +515,7 @@ EOF;
 
 EOF;
 
-    $result = $pdo->prepare(<<<EOF
-SELECT `id`,
-  `name`,
-  `winners`,
-  `created`,
-  `closed`,
-  COUNT(DISTINCT `user`) AS `ballots`
-FROM (
-  SELECT `elections`.`id` AS `id`,
-    `elections`.`name` AS `name`,
-    `elections`.`winners` AS `winners`,
-    `elections`.`created` AS `created`,
-    `elections`.`closed` AS `closed`,
-    `votes`.`user`
-  FROM `elections`
-  LEFT JOIN `candidates` ON `elections`.`id` = `candidates`.`election`
-  LEFT JOIN `votes` ON `candidates`.`id` = `votes`.`candidate`
-  UNION SELECT `elections`.`id` AS `id`,
-    `elections`.`name` AS `name`,
-    `elections`.`winners` AS `winners`,
-    `elections`.`created` AS `created`,
-    `elections`.`closed` AS `closed`,
-    `writeins`.`user`
-  FROM `elections`
-  LEFT JOIN `writeins` ON `elections`.`id` = `writeins`.`election`
-)
-GROUP BY `id`
-EOF
-      );
+    $result = $pdo->prepare(file_get_contents('polls.sql'));
 
     $result->execute();
 
