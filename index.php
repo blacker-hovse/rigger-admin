@@ -523,7 +523,6 @@ EOF;
 EOF;
 
     $result = $pdo->prepare(file_get_contents('polls.sql'));
-
     $result->execute();
 
     while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
