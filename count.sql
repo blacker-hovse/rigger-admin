@@ -14,16 +14,16 @@ SELECT `c1`.`id` AS `c1`,
   `c2`.`id` AS `c2`,
   `c1`.`name` AS `n1`,
   `c2`.`name` AS `n2`,
-  SUM(
+  IFNULL(SUM(
     `c1`.`rank` < `c2`.`rank`
       OR `c1`.`rank` IS NOT NULL
       AND `c2`.`rank` IS NULL
-  ) AS `a`,
-  SUM(
+  ), 0) AS `a`,
+  IFNULL(SUM(
     `c1`.`rank` > `c2`.`rank`
       OR `c1`.`rank` IS NULL
       AND `c2`.`rank` IS NOT NULL
-  ) AS `b`
+  ), 0) AS `b`
 FROM (
   SELECT `candidates`.`id`,
     `candidates`.`name`,
@@ -61,5 +61,6 @@ INNER JOIN (
 WHERE `c1`.`id` <> `c2`.`id`
 GROUP BY `c1`.`id`,
   `c2`.`id`
-ORDER BY `a` DESC,
+ORDER BY `a` > `b` DESC,
+  `a` DESC,
   `b`
